@@ -8,8 +8,10 @@ A secure, desktop-first automation utility that compiles and syncs YouTube playl
 
 * **True Idempotent Syncing:** Your text file is the single source of truth. The engine automatically adds missing tracks, skips duplicates, and cleanly prunes remote tracks that have been deleted from the local file.
 * **Smart Audio Curation:** * Prioritizes official video configurations by auto-selecting **"- Topic"** channel uploads.
-  * Strictly enforces a **15-minute runtime threshold** to filter out full-length albums or long loops.
-  * Aggressively blocks low-fidelity tracks using an internal word blacklist (`live`, `remix`, `cover`, `slowed`, `sped up`, etc.).
+  * Aggressively blocks low-fidelity tracks using an internal word blacklist (`remix`, `cover`, `slowed`, `sped up`, `reaction`, etc.).
+* **Dynamic Audio Filters:**
+  * **User-Defined Durations:** Set precise maximum video lengths to smoothly include everything from quick 2-minute tracks to massive 30+ minute ambient soundscapes and progressive epics.
+  * **Conditional Live Inclusions:** Toggle the inclusion of live performances on the fly, bypassing the standard keyword filters when you want to capture concerts or session recordings.
 * **Quota Preservation Engine:** Video lookups are mapped and preserved inside a local cache file. This massively slashes expensive search quota usage (100 units per search) and makes subsequent sync executions instantaneous.
 * **Dual Execution Modes:** Fully operational via a streamlined terminal interface or a native cross-platform desktop UI window.
 
@@ -20,8 +22,8 @@ A secure, desktop-first automation utility that compiles and syncs YouTube playl
 ```text
 youtube-playlist-builder/
 │
-├── main.py             # Core API Engine, Curation Logic & CLI Entrypoint
-├── gui.py              # Tkinter-based Desktop GUI with System Theme Adaptivity
+├── main.py             # Core API Engine, Filter Validation & CLI Entrypoint
+├── gui.py              # Tkinter-based Desktop UI with Custom Filter Controls
 ├── .gitignore          # Firewall configuration excluding local keys & caches
 ├── README.md           # Documentation
 │
