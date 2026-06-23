@@ -1,4 +1,4 @@
-# 🎵 YouTube Playlist Sync (Utility Edition)
+# 🎵 YouTube Playlist Builder desktop utility
 
 A secure, desktop-first automation utility that compiles and syncs YouTube playlists directly from plain-text `.txt` files. By communicating natively with the YouTube Data API v3 from your local environment, this tool completely eliminates the friction of heavy web-app interfaces and browser-bloat.
 
@@ -67,7 +67,7 @@ pip install tkinterdnd2
 Because this utility is entirely open-source, you must supply your own secure credentials from the Google Cloud Console. Follow these steps to generate your keys:
 
 1. **Create Project:** Go to [Google Cloud Console](https://console.cloud.google.com/), create a new project, and enable the **YouTube Data API v3**.
-2. **Configure Consent:** Navigate to **APIs & Services > OAuth consent screen**. Create an **External** app, add your email to **Test users**, and save.
+2. **Configure Consent:** Navigate to **APIs & Services > OAuth consent screen**. Create an **Internal** app, add your email, and save.
 3. **Generate Keys:** Go to **Credentials > + Create Credentials > OAuth client ID**. Select **Desktop app**, create, and **Download JSON**.
 4. **Link to App:** Move the downloaded file into your root folder and rename it exactly to `client_secret.json`.
 
