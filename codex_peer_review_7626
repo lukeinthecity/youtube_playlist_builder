@@ -1,0 +1,19 @@
+Findings
+High: OAuth/runtime secrets are not fully ignored. .gitignore only ignores client_secret.json and __pycache__/, but the README explicitly tells users the app creates token.json and cache.json (README.md, README.md). token.json can contain OAuth refresh credentials and must be ignored before this repo is promoted. Add at least: token.json, cache.json, .env, venv/, .venv/, *.log.
+High: README claims token persistence, but the code does not implement it. main.py calls InstalledAppFlow.from_client_secrets_file(...).run_local_server(...) and immediately returns the service. It never loads, refreshes, or writes token.json. So the README’s token.json behavior is currently inaccurate, and users may have to authenticate repeatedly.
+High: playlist and playlist-item pagination is missing. get_or_create_playlist and get_playlist_items only fetch maxResults=50 once. If a user has more than 50 playlists, the tool can create duplicate playlists. If a playlist has more than 50 items, sync state is incomplete, which can cause duplicate additions and incomplete pruning.
+Medium: GUI updates Tkinter widgets from a worker thread. gui.py runs sync_playlist in a background thread, but callbacks call self.log, self.update_progress, and messagebox directly from that thread. Tkinter is not thread-safe; this can produce intermittent UI crashes or hangs. Use root.after(...) or a queue.Queue to marshal UI updates onto the main thread.
+Medium: cache invalidation is incomplete. Cached matches are only revalidated against duration at main.py. A cached “live” result can still be reused when allow_live=False, and blacklist changes are not reflected. Also, when a cached entry violates duration and a new search succeeds, the cache is not updated with the new result.
+Medium: README overstates security. Phrases like “secured OAuth session persistence token” and “locked safely inside your local directory” (README.md, README.md) imply protection that is not present. Local files are only as safe as local filesystem permissions.
+Low: packaging is too manual. There is no requirements.txt, pyproject.toml, CI, or tests. For a small utility that is acceptable early on, but public users will have a smoother experience with at least requirements.txt and one smoke test for argument parsing / cache behavior.
+Low: docs mismatch actual files. README’s project tree says LICENSE, but the repo has LICENSE.md (README.md, LICENSE.md).
+Verdict
+Not ready for active public promotion yet. It is fine as a small public work-in-progress, but I would fix .gitignore, token persistence/docs accuracy, and pagination first. Those are the issues most likely to hurt a real user.
+Minimum Public-Ready Pass
+Expand .gitignore for token.json, cache.json, virtualenvs, logs, and env files.
+Implement OAuth token load/save/refresh or remove the README claim that it persists auth.
+Add YouTube pagination for playlists and playlist items.
+Add requirements.txt.
+Tone down “secure/locked safely” language to “stored locally; keep private.”
+Add a short “Known limitations” section: YouTube search quality varies, quota use can be high, playlist pruning is destructive by design.
+This is a much smaller repo than the OCI tool, but the same pattern applies: public-readiness is mostly about protecting user credentials and preventing surprising destructive behavior.
