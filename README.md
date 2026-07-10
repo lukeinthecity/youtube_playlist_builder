@@ -165,3 +165,14 @@ To bypass it safely:
 1. Click the small **Advanced** link at the bottom of the warning text block.
 2. Click **Go to Playlist Builder (unsafe)**.
 3. Grant the script permission to manage your playlists. Your OAuth token is then saved to `token.json` in your local working directory. The tool never transmits it anywhere, but it is an ordinary file on disk — keep it private and out of version control (the provided `.gitignore` already excludes it).
+
+---
+
+## 🗺️ Roadmap
+
+Planned, not yet built:
+
+* **Desktop UI aesthetic overhaul.** The current Tkinter interface is functional but plain. Planned: refined spacing and typography, a proper icon/branding pass, and a more polished light/dark theme. Likely still Tkinter-based (possibly via `customtkinter` or similar) rather than a full toolkit rewrite, though that's still open.
+* **Standalone Windows installer (`.exe`).** A packaged build (e.g. via PyInstaller) so people can download and run the GUI without installing Python, pip, or a terminal. Users will still need to supply their own `client_secret.json` — OAuth credentials are per-developer and can't be bundled into a shared installer.
+
+Have a request or want to help with either? Open an issue.
