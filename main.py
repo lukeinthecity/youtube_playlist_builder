@@ -6,9 +6,12 @@ import argparse
 from datetime import datetime
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
+from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
 
 SCOPES = ["https://www.googleapis.com/auth/youtube"]
 CACHE_FILE = "cache.json"
+TOKEN_FILE = "token.json"
 
 BLACKLIST = [
     "live",
@@ -23,10 +26,36 @@ BLACKLIST = [
 
 # ---------------- AUTH ----------------
 
+def save_token(credentials):
+    with open(TOKEN_FILE, "w", encoding="utf-8") as f:
+        f.write(credentials.to_json())
+    try:
+        os.chmod(TOKEN_FILE, 0o600)
+    except OSError:
+        pass  # best effort; not supported on all platforms
+
 def authenticate():
-    flow = InstalledAppFlow.from_client_secrets_file(
-        "client_secret.json", SCOPES)
-    credentials = flow.run_local_server(port=0)
+    credentials = None
+
+    if os.path.exists(TOKEN_FILE):
+        try:
+            credentials = Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
+        except (ValueError, json.JSONDecodeError):
+            credentials = None  # corrupt or incompatible token file; re-authenticate
+
+    if credentials and credentials.expired and credentials.refresh_token:
+        try:
+            credentials.refresh(Request())
+            save_token(credentials)
+        except Exception:
+            credentials = None  # refresh token revoked or expired; re-authenticate
+
+    if not credentials or not credentials.valid:
+        flow = InstalledAppFlow.from_client_secrets_file(
+            "client_secret.json", SCOPES)
+        credentials = flow.run_local_server(port=0)
+        save_token(credentials)
+
     return build("youtube", "v3", credentials=credentials)
 
 # ---------------- CACHE ----------------
@@ -121,6 +150,7 @@ def search_video(youtube, query, max_duration_seconds, allow_live, log_callback=
 
     return {
         "video_id": chosen["id"],
+        "title": chosen["snippet"]["title"],
         "channel": chosen["snippet"]["channelTitle"],
         "duration": iso8601_to_seconds(chosen["contentDetails"]["duration"]),
         "last_verified": datetime.utcnow().isoformat()
@@ -129,16 +159,18 @@ def search_video(youtube, query, max_duration_seconds, allow_live, log_callback=
 # ---------------- PLAYLIST ----------------
 
 def get_or_create_playlist(youtube, title, privacy, log_callback=None):
-    playlists = youtube.playlists().list(
+    request = youtube.playlists().list(
         part="snippet",
         mine=True,
         maxResults=50
-    ).execute()
-
-    for item in playlists["items"]:
-        if item["snippet"]["title"] == title:
-            log_msg(f"Found existing playlist: {title}", log_callback)
-            return item["id"]
+    )
+    while request is not None:
+        response = request.execute()
+        for item in response["items"]:
+            if item["snippet"]["title"] == title:
+                log_msg(f"Found existing playlist: {title}", log_callback)
+                return item["id"]
+        request = youtube.playlists().list_next(request, response)
 
     log_msg(f"Creating new playlist: {title}", log_callback)
     response = youtube.playlists().insert(
@@ -155,17 +187,19 @@ def get_or_create_playlist(youtube, title, privacy, log_callback=None):
     return response["id"]
 
 def get_playlist_items(youtube, playlist_id):
-    items = youtube.playlistItems().list(
+    results = {}
+    request = youtube.playlistItems().list(
         part="snippet",
         playlistId=playlist_id,
         maxResults=50
-    ).execute()
-
-    results = {}
-    for item in items["items"]:
-        video_id = item["snippet"]["resourceId"]["videoId"]
-        playlist_item_id = item["id"]
-        results[video_id] = playlist_item_id
+    )
+    while request is not None:
+        response = request.execute()
+        for item in response["items"]:
+            video_id = item["snippet"]["resourceId"]["videoId"]
+            playlist_item_id = item["id"]
+            results[video_id] = playlist_item_id
+        request = youtube.playlistItems().list_next(request, response)
 
     return results
 
@@ -221,34 +255,38 @@ def sync_playlist(filepath, title=None, privacy="private", max_duration_minutes=
     for index, track in enumerate(desired_tracks, start=1):
         log_msg(f"Processing: {track}", log_callback)
 
-        if track in cache:
-            # Check cached matches against the *current* parameter choices
-            video_data = cache[track]
-            if video_data["duration"] <= max_duration_seconds:
+        video_data = None
+        cached = cache.get(track)
+        if cached:
+            # Re-check cached matches against the *current* parameter choices.
+            # Entries written by older versions lack a title and can't be
+            # checked against the blacklist, so those are re-searched too.
+            if "title" in cached and is_valid_video(
+                    cached["title"], cached["duration"], max_duration_seconds, allow_live):
+                video_data = cached
                 log_msg("  Using cached match", log_callback)
             else:
-                log_msg("  Cached entry violates current duration selection. Re-searching...", log_callback)
-                video_data = search_video(youtube, track, max_duration_seconds, allow_live, log_callback)
-        else:
+                log_msg("  Cached entry no longer satisfies current filters. Re-searching...", log_callback)
+
+        if video_data is None:
             video_data = search_video(youtube, track, max_duration_seconds, allow_live, log_callback)
             if video_data:
                 cache[track] = video_data
                 log_msg(f"  Cached: {video_data['video_id']}", log_callback)
             else:
-                log_msg("  Skipped (no match template rules satisfied)", log_callback)
+                log_msg("  Skipped (no match satisfied current filters)", log_callback)
                 if progress_callback:
                     progress_callback(index, total)
                 continue
 
-        if video_data:
-            video_id = video_data["video_id"]
-            desired_video_ids.add(video_id)
+        video_id = video_data["video_id"]
+        desired_video_ids.add(video_id)
 
-            if video_id not in existing_items:
-                log_msg("  Not in playlist, adding...", log_callback)
-                add_to_playlist(youtube, playlist_id, video_id, log_callback)
-            else:
-                log_msg("  Already present", log_callback)
+        if video_id not in existing_items:
+            log_msg("  Not in playlist, adding...", log_callback)
+            add_to_playlist(youtube, playlist_id, video_id, log_callback)
+        else:
+            log_msg("  Already present", log_callback)
 
         if progress_callback:
             progress_callback(index, total)

@@ -205,11 +205,21 @@ class PlaylistApp:
         self.file_entry.delete(0, tk.END)
         self.file_entry.insert(0, path)
 
+    # Tkinter is not thread-safe: the sync worker thread must never touch
+    # widgets directly, so log/progress callbacks are marshaled onto the
+    # main loop with root.after.
+
     def log(self, message):
+        self.root.after(0, self._append_log, message)
+
+    def _append_log(self, message):
         self.log_text.insert(tk.END, message + "\n")
         self.log_text.see(tk.END)
 
     def update_progress(self, current, total):
+        self.root.after(0, self._set_progress, current, total)
+
+    def _set_progress(self, current, total):
         if total > 0:
             value = int((current / total) * 100)
             self.progress["value"] = value
@@ -251,12 +261,14 @@ class PlaylistApp:
                     progress_callback=self.update_progress
                 )
                 self.log("Finished.")
-                messagebox.showinfo("Success", "Playlist synced successfully.")
+                self.root.after(0, lambda: messagebox.showinfo(
+                    "Success", "Playlist synced successfully."))
             except Exception as e:
                 self.log(f"Error: {e}")
-                messagebox.showerror("Error", str(e))
+                self.root.after(0, lambda message=str(e): messagebox.showerror(
+                    "Error", message))
             finally:
-                self.sync_button.config(state="normal")
+                self.root.after(0, lambda: self.sync_button.config(state="normal"))
 
         threading.Thread(target=task, daemon=True).start()
 

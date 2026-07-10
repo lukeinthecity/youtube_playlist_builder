@@ -1,6 +1,6 @@
 # 🎵 YouTube Playlist Builder desktop utility
 
-A secure, desktop-first automation utility that compiles and syncs YouTube playlists directly from plain-text `.txt` files. By communicating natively with the YouTube Data API v3 from your local environment, this tool completely eliminates the friction of heavy web-app interfaces and browser-bloat.
+A desktop-first automation utility that compiles and syncs YouTube playlists directly from plain-text `.txt` files. By communicating natively with the YouTube Data API v3 from your local environment, this tool completely eliminates the friction of heavy web-app interfaces and browser-bloat.
 
 ---
 
@@ -24,12 +24,14 @@ youtube-playlist-builder/
 │
 ├── main.py             # Core API Engine, Filter Validation & CLI Entrypoint
 ├── gui.py              # Tkinter-based Desktop UI with Custom Filter Controls
-├── .gitignore          # Firewall configuration excluding local keys & caches
-├── LICENSE             # MIT Open-Source License Terms
+├── test_main.py        # Smoke tests for parsing, filtering & cache helpers
+├── requirements.txt    # Python dependencies
+├── .gitignore          # Excludes local credentials, caches & environments
+├── LICENSE.md          # MIT Open-Source License Terms
 ├── README.md           # Documentation
 │
-├── client_secret.json  # USER PROVIDED: Google Cloud Console OAuth Key
-├── token.json          # AUTOMATIC: Secured OAuth Session Persistence Token
+├── client_secret.json  # USER PROVIDED: Google Cloud Console OAuth Key (never commit)
+├── token.json          # AUTOMATIC: OAuth token — stored locally; keep private
 └── cache.json          # AUTOMATIC: Persistent Track-to-Video API Mapping Cache
 ```
 
@@ -55,7 +57,7 @@ source venv/bin/activate
 Install the required Google API integration components and optional UI enhancements:
 
 ```bash
-pip install google-api-python-client google-auth-oauthlib google-auth-httplib2
+pip install -r requirements.txt
 
 # Optional: Enables seamless drag-and-drop integration in the GUI layout
 pip install tkinterdnd2
@@ -109,12 +111,21 @@ python main.py my_list.txt --max-duration 45 --allow-live --privacy unlisted
 
 ---
 
-## 🛡️ Security & State Persistence
+## 🗄️ Local Files & State Persistence
 
-This tool separates core public logic from local runtime files. 
+This tool separates core public logic from local runtime files. All of these files live in your working directory and are excluded from version control by `.gitignore` — **treat `client_secret.json` and `token.json` like passwords and never share or commit them.**
 
-* **`token.json`:** Generated automatically upon your first secure login. It handles re-authentication in the background via secure OAuth2 refresh keys.
-* **`cache.json`:** Safely tracks query maps. If you adjust your duration configurations, the engine will smartly look past cached entries that violate your new limits and perform fresh searches.
+* **`token.json`:** Written automatically after your first login. On later runs the tool reuses it (refreshing expired access tokens automatically) so you don't have to re-authenticate every time. It is a plain-text file containing your OAuth refresh token; it is only as protected as your local filesystem permissions. Delete it to force a fresh login or to revoke this machine's access (also revoke the app under your [Google account permissions](https://myaccount.google.com/permissions)).
+* **`cache.json`:** Stores track-to-video lookups to save API quota. Cached matches are re-checked against your current filters (duration, live toggle, keyword blacklist) on every run, and re-searched if they no longer qualify.
+
+---
+
+## ⚠️ Known Limitations
+
+* **Search quality varies.** Matches come from the top YouTube search results for each line of your text file; ambiguous track names can match the wrong video. Check the activity log after a first sync.
+* **Quota usage can be high.** Each uncached track lookup costs 100 quota units of the default 10,000/day YouTube Data API allowance, so a large first sync (roughly 90+ new tracks) can exhaust a day's quota. Subsequent runs are cheap thanks to the cache.
+* **Pruning is destructive by design.** Any video in the managed playlist that doesn't correspond to a line in your text file is removed on sync. Don't point the tool at a playlist you curate by hand, and don't hand-add videos to a managed playlist.
+* **The cache doesn't detect removed videos.** If a cached video is later deleted or made private on YouTube, delete `cache.json` (or the affected entry) to force a fresh search.
 
 ---
 
@@ -153,4 +164,4 @@ When authenticating in your web browser for the first time, Google will display 
 To bypass it safely:
 1. Click the small **Advanced** link at the bottom of the warning text block.
 2. Click **Go to Playlist Builder (unsafe)**.
-3. Grant the script permission to manage your playlists. Your authentication credentials will be locked safely inside your local directory as `token.json` and will never be shared.
+3. Grant the script permission to manage your playlists. Your OAuth token is then saved to `token.json` in your local working directory. The tool never transmits it anywhere, but it is an ordinary file on disk — keep it private and out of version control (the provided `.gitignore` already excludes it).
