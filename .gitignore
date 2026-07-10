@@ -1,2 +1,14 @@
-client_secret.json 
-__pycache__/ 
+# OAuth credentials and runtime secrets — never commit these
+client_secret.json
+token.json
+cache.json
+.env
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# Logs
+*.log
