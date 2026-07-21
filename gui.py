@@ -1,9 +1,8 @@
-import sys
-import io
-import platform
 import threading
 import tkinter as tk
-from tkinter import filedialog, messagebox, ttk
+from tkinter import filedialog, messagebox
+
+import customtkinter as ctk
 
 from main import sync_playlist
 
@@ -11,184 +10,184 @@ try:
     from tkinterdnd2 import DND_FILES, TkinterDnD
     DND_AVAILABLE = True
 except ImportError:
-    TkinterDnD = tk.Tk  
     DND_AVAILABLE = False
 
-try:
-    import winreg
-except ImportError:
-    winreg = None
+ctk.set_appearance_mode("system")
+ctk.set_default_color_theme("blue")
 
-def get_system_theme():
-    if platform.system() == "Windows" and winreg is not None:
-        try:
-            key = winreg.OpenKey(
-                winreg.HKEY_CURRENT_USER,
-                r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"
-            )
-            value, _ = winreg.QueryValueEx(key, "AppsUseLightTheme")
-            winreg.CloseKey(key)
-            return "dark" if value == 0 else "light"
-        except Exception:
-            return "dark"
-    return "light"  
+MIN_DURATION = 1
+MAX_DURATION = 180
+DEFAULT_DURATION = 15
+
+if DND_AVAILABLE:
+    class AppRoot(ctk.CTk, TkinterDnD.DnDWrapper):
+        # CTk root with the tkdnd Tcl package loaded, so any widget in the
+        # window can register as a drop target.
+        def __init__(self):
+            super().__init__()
+            self.TkdndVersion = TkinterDnD._require(self)
+else:
+    AppRoot = ctk.CTk
+
 
 class PlaylistApp:
 
     def __init__(self, root):
         self.root = root
         self.root.title("YouTube Playlist Sync")
-
-        self.theme_var = tk.StringVar(value="system")
-
-        self.bg_color = "#1e1e1e"
-        self.fg_color = "#e6e6e6"
-        self.entry_bg = "#2a2a2a"
-        self.accent = "#3a7ff6"
+        self.root.geometry("720x700")
+        self.root.minsize(640, 620)
 
         self.build_ui()
-        self.apply_theme()  
 
     def build_ui(self):
-        self.root.geometry("700x620") # Expanded slightly to give our new options breathing room
+        self.root.grid_columnconfigure(0, weight=1)
+        self.root.grid_rowconfigure(4, weight=1)
 
-        theme_frame = tk.Frame(self.root)
-        theme_frame.pack(anchor="ne", padx=10, pady=5)
+        # ---- Header: title + theme switcher ----
+        header = ctk.CTkFrame(self.root, fg_color="transparent")
+        header.grid(row=0, column=0, sticky="ew", padx=20, pady=(16, 8))
+        header.grid_columnconfigure(0, weight=1)
 
-        tk.Label(theme_frame, text="Theme:").pack(side="left", padx=5)
+        ctk.CTkLabel(
+            header, text="🎵  YouTube Playlist Sync",
+            font=ctk.CTkFont(size=22, weight="bold")
+        ).grid(row=0, column=0, sticky="w")
+        ctk.CTkLabel(
+            header, text="Build and sync playlists from a plain-text track list",
+            font=ctk.CTkFont(size=13), text_color="gray"
+        ).grid(row=1, column=0, sticky="w")
 
-        for value in ["system", "light", "dark"]:
-            tk.Radiobutton(
-                theme_frame,
-                text=value.capitalize(),
-                variable=self.theme_var,
-                value=value,
-                command=self.apply_theme
-            ).pack(side="left")
-
-        self.main_frame = tk.Frame(self.root)
-        self.main_frame.pack(fill="both", expand=True, padx=20, pady=10)
-
-        self.file_label = tk.Label(self.main_frame, text="Playlist File (.txt)")
-        self.file_label.pack(pady=5)
-
-        self.file_entry = tk.Entry(self.main_frame, width=60)
-        self.file_entry.pack()
-
-        self.browse_button = tk.Button(
-            self.main_frame, text="Browse", command=self.select_file
+        self.theme_switcher = ctk.CTkSegmentedButton(
+            header, values=["System", "Light", "Dark"],
+            command=self.change_theme
         )
-        self.browse_button.pack(pady=5)
+        self.theme_switcher.set("System")
+        self.theme_switcher.grid(row=0, column=1, rowspan=2, sticky="e")
+
+        # ---- Card: playlist source ----
+        source_card = ctk.CTkFrame(self.root, corner_radius=12)
+        source_card.grid(row=1, column=0, sticky="ew", padx=20, pady=8)
+        source_card.grid_columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(
+            source_card, text="Playlist Source",
+            font=ctk.CTkFont(size=14, weight="bold")
+        ).grid(row=0, column=0, columnspan=2, sticky="w", padx=16, pady=(12, 4))
+
+        file_hint = "Playlist file (.txt)"
+        if DND_AVAILABLE:
+            file_hint += " — or drag & drop it here"
+        self.file_entry = ctk.CTkEntry(
+            source_card, placeholder_text=file_hint, height=36
+        )
+        self.file_entry.grid(row=1, column=0, sticky="ew", padx=(16, 8), pady=4)
+
+        self.browse_button = ctk.CTkButton(
+            source_card, text="Browse", width=100, height=36,
+            command=self.select_file
+        )
+        self.browse_button.grid(row=1, column=1, sticky="e", padx=(0, 16), pady=4)
 
         if DND_AVAILABLE:
             self.file_entry.drop_target_register(DND_FILES)
             self.file_entry.dnd_bind("<<Drop>>", self.handle_drop)
 
-        self.title_label = tk.Label(self.main_frame, text="Playlist Title (optional)")
-        self.title_label.pack(pady=5)
-
-        self.title_entry = tk.Entry(self.main_frame, width=60)
-        self.title_entry.pack()
-
-        self.privacy_label = tk.Label(self.main_frame, text="Privacy")
-        self.privacy_label.pack(pady=5)
-
-        self.privacy_var = tk.StringVar(value="private")
-        self.privacy_dropdown = ttk.Combobox(
-            self.main_frame,
-            textvariable=self.privacy_var,
-            values=["private", "unlisted", "public"],
-            state="readonly"
+        self.title_entry = ctk.CTkEntry(
+            source_card, placeholder_text="Playlist title (optional — defaults to the file name)",
+            height=36
         )
-        self.privacy_dropdown.pack(pady=5)
+        self.title_entry.grid(
+            row=2, column=0, columnspan=2, sticky="ew", padx=16, pady=(4, 14)
+        )
 
-        # ---- NEW FILTER SELECTION ROW FRAME ----
-        self.filter_frame = tk.Frame(self.main_frame)
-        self.filter_frame.pack(pady=10)
+        # ---- Card: sync options ----
+        options_card = ctk.CTkFrame(self.root, corner_radius=12)
+        options_card.grid(row=2, column=0, sticky="ew", padx=20, pady=8)
+        options_card.grid_columnconfigure((0, 1, 2), weight=1)
 
-        self.duration_label = tk.Label(self.filter_frame, text="Max Video Length (Minutes):")
-        self.duration_label.pack(side="left", padx=5)
-        
-        self.duration_spinbox = tk.Spinbox(self.filter_frame, from_=1, to=180, width=5)
-        self.duration_spinbox.delete(0, "end")
-        self.duration_spinbox.insert(0, "15") # Match original defaults
-        self.duration_spinbox.pack(side="left", padx=5)
+        ctk.CTkLabel(
+            options_card, text="Sync Options",
+            font=ctk.CTkFont(size=14, weight="bold")
+        ).grid(row=0, column=0, columnspan=3, sticky="w", padx=16, pady=(12, 4))
+
+        ctk.CTkLabel(options_card, text="Privacy").grid(
+            row=1, column=0, sticky="w", padx=16
+        )
+        self.privacy_var = tk.StringVar(value="private")
+        self.privacy_menu = ctk.CTkOptionMenu(
+            options_card, variable=self.privacy_var,
+            values=["private", "unlisted", "public"], width=140
+        )
+        self.privacy_menu.grid(row=2, column=0, sticky="w", padx=16, pady=(2, 14))
+
+        ctk.CTkLabel(options_card, text="Max video length (minutes)").grid(
+            row=1, column=1, sticky="w", padx=8
+        )
+        spin_frame = ctk.CTkFrame(options_card, fg_color="transparent")
+        spin_frame.grid(row=2, column=1, sticky="w", padx=8, pady=(2, 14))
+
+        self.duration_down = ctk.CTkButton(
+            spin_frame, text="−", width=32, command=lambda: self.step_duration(-1)
+        )
+        self.duration_down.pack(side="left")
+        self.duration_entry = ctk.CTkEntry(spin_frame, width=56, justify="center")
+        self.duration_entry.insert(0, str(DEFAULT_DURATION))
+        self.duration_entry.pack(side="left", padx=6)
+        self.duration_up = ctk.CTkButton(
+            spin_frame, text="+", width=32, command=lambda: self.step_duration(1)
+        )
+        self.duration_up.pack(side="left")
 
         self.live_var = tk.BooleanVar(value=False)
-        self.live_checkbox = tk.Checkbutton(
-            self.filter_frame, 
-            text="Allow Live Tracks", 
-            variable=self.live_var
+        self.live_checkbox = ctk.CTkCheckBox(
+            options_card, text="Allow live tracks", variable=self.live_var
         )
-        self.live_checkbox.pack(side="left", padx=15)
-        # ----------------------------------------
+        self.live_checkbox.grid(row=2, column=2, sticky="w", padx=16, pady=(2, 14))
 
-        self.sync_button = tk.Button(
-            self.main_frame,
-            text="Sync Playlist",
-            command=self.run_sync,
-            width=20
+        # ---- Sync button + progress ----
+        action_frame = ctk.CTkFrame(self.root, fg_color="transparent")
+        action_frame.grid(row=3, column=0, sticky="ew", padx=20, pady=8)
+        action_frame.grid_columnconfigure(0, weight=1)
+
+        self.sync_button = ctk.CTkButton(
+            action_frame, text="Sync Playlist", height=40,
+            font=ctk.CTkFont(size=15, weight="bold"),
+            command=self.run_sync
         )
-        self.sync_button.pack(pady=10)
+        self.sync_button.grid(row=0, column=0, sticky="ew")
 
-        self.progress = ttk.Progressbar(self.main_frame, mode="determinate")
-        self.progress.pack(fill="x", padx=10, pady=5)
+        self.progress = ctk.CTkProgressBar(action_frame, height=10)
+        self.progress.set(0)
+        self.progress.grid(row=1, column=0, sticky="ew", pady=(10, 0))
 
-        self.log_label = tk.Label(self.main_frame, text="Activity Log")
-        self.log_label.pack(pady=5)
+        # ---- Card: activity log ----
+        log_card = ctk.CTkFrame(self.root, corner_radius=12)
+        log_card.grid(row=4, column=0, sticky="nsew", padx=20, pady=(8, 16))
+        log_card.grid_columnconfigure(0, weight=1)
+        log_card.grid_rowconfigure(1, weight=1)
 
-        self.log_text = tk.Text(self.main_frame, height=10)
-        self.log_text.pack(fill="both", expand=True)
+        ctk.CTkLabel(
+            log_card, text="Activity Log",
+            font=ctk.CTkFont(size=14, weight="bold")
+        ).grid(row=0, column=0, sticky="w", padx=16, pady=(12, 4))
 
-    def apply_theme(self):
-        theme_choice = self.theme_var.get()
-        if theme_choice == "system":
-            mode = get_system_theme()
-        else:
-            mode = theme_choice
+        self.log_text = ctk.CTkTextbox(
+            log_card, font=ctk.CTkFont(family="Courier", size=12), wrap="word"
+        )
+        self.log_text.grid(row=1, column=0, sticky="nsew", padx=16, pady=(0, 14))
 
-        if mode == "dark":
-            self.bg_color = "#1e1e1e"
-            self.fg_color = "#e6e6e6"
-            self.entry_bg = "#2a2a2a"
-            self.accent = "#3a7ff6"
-        else:  
-            self.bg_color = "#f2f2f2"
-            self.fg_color = "#1e1e1e"
-            self.entry_bg = "#ffffff"
-            self.accent = "#3a7ff6"
+    def change_theme(self, choice):
+        ctk.set_appearance_mode(choice.lower())
 
-        self.root.configure(bg=self.bg_color)
-
-        for child in self.root.winfo_children():
-            if isinstance(child, tk.Frame):
-                for sub in child.winfo_children():
-                    if isinstance(sub, tk.Label) or isinstance(sub, tk.Radiobutton):
-                        sub.configure(bg=self.bg_color, fg=self.fg_color)
-
-        self.main_frame.configure(bg=self.bg_color)
-        self.filter_frame.configure(bg=self.bg_color) # Ensure options block adapts seamlessly
-
-        for widget in [
-            self.file_label,
-            self.title_label,
-            self.privacy_label,
-            self.duration_label,
-            self.log_label,
-        ]:
-            widget.configure(bg=self.bg_color, fg=self.fg_color)
-
-        for entry in [self.file_entry, self.title_entry]:
-            entry.configure(bg=self.entry_bg, fg=self.fg_color, insertbackground=self.fg_color)
-
-        # Theme matching customization for specialized filter selectors
-        self.duration_spinbox.configure(bg=self.entry_bg, fg=self.fg_color, buttonbackground=self.entry_bg, insertbackground=self.fg_color)
-        self.live_checkbox.configure(bg=self.bg_color, fg=self.fg_color, selectcolor=self.entry_bg, activebackground=self.bg_color, activeforeground=self.fg_color)
-
-        self.browse_button.configure(bg=self.accent, fg="white", activebackground=self.accent)
-        self.sync_button.configure(bg=self.accent, fg="white", activebackground=self.accent)
-
-        self.log_text.configure(bg=self.entry_bg, fg=self.fg_color, insertbackground=self.fg_color)
+    def step_duration(self, delta):
+        try:
+            value = int(self.duration_entry.get())
+        except ValueError:
+            value = DEFAULT_DURATION
+        value = max(MIN_DURATION, min(MAX_DURATION, value + delta))
+        self.duration_entry.delete(0, tk.END)
+        self.duration_entry.insert(0, str(value))
 
     def select_file(self):
         file_path = filedialog.askopenfilename(
@@ -221,31 +220,30 @@ class PlaylistApp:
 
     def _set_progress(self, current, total):
         if total > 0:
-            value = int((current / total) * 100)
-            self.progress["value"] = value
+            self.progress.set(current / total)
         else:
-            self.progress["value"] = 0
+            self.progress.set(0)
 
     def run_sync(self):
         file_path = self.file_entry.get()
         title = self.title_entry.get()
         privacy = self.privacy_var.get()
-        
+
         # Read the customized duration value safely
         try:
-            max_duration = int(self.duration_spinbox.get())
+            max_duration = int(self.duration_entry.get())
         except ValueError:
             messagebox.showerror("Validation Error", "Please provide a valid integer for maximum video length.")
             return
-            
+
         allow_live = self.live_var.get()
 
         if not file_path:
             messagebox.showerror("Error", "Please select a playlist file.")
             return
 
-        self.sync_button.config(state="disabled")
-        self.progress["value"] = 0
+        self.sync_button.configure(state="disabled")
+        self.progress.set(0)
         self.log_text.delete("1.0", tk.END)
         self.log("Starting sync...")
 
@@ -268,15 +266,12 @@ class PlaylistApp:
                 self.root.after(0, lambda message=str(e): messagebox.showerror(
                     "Error", message))
             finally:
-                self.root.after(0, lambda: self.sync_button.config(state="normal"))
+                self.root.after(0, lambda: self.sync_button.configure(state="normal"))
 
         threading.Thread(target=task, daemon=True).start()
 
-if __name__ == "__main__":
-    if DND_AVAILABLE:
-        root = TkinterDnD.Tk()
-    else:
-        root = tk.Tk()
 
+if __name__ == "__main__":
+    root = AppRoot()
     app = PlaylistApp(root)
     root.mainloop()

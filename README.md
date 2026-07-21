@@ -23,7 +23,7 @@ A desktop-first automation utility that compiles and syncs YouTube playlists dir
 youtube-playlist-builder/
 │
 ├── main.py             # Core API Engine, Filter Validation & CLI Entrypoint
-├── gui.py              # Tkinter-based Desktop UI with Custom Filter Controls
+├── gui.py              # CustomTkinter Desktop UI with Custom Filter Controls
 ├── test_main.py        # Smoke tests for parsing, filtering & cache helpers
 ├── requirements.txt    # Python dependencies
 ├── .gitignore          # Excludes local credentials, caches & environments
@@ -54,7 +54,7 @@ source venv/bin/activate
 ```
 
 ### 2. Install Dependencies
-Install the required Google API integration components and optional UI enhancements:
+Install the required Google API components and the CustomTkinter UI toolkit:
 
 ```bash
 pip install -r requirements.txt
@@ -86,10 +86,11 @@ For a seamless, interactive configuration flow, launch the multi-threaded deskto
 python gui.py
 ```
 
+* **Modern Interface:** A card-based layout built on [CustomTkinter](https://github.com/TomSchimansky/CustomTkinter) with rounded controls and clean typography.
 * **Automatic Credentials Handshake:** The application automatically detects `client_secret.json` on launch.
-* **Custom Filtering Controllers:** Adjust the duration spinbox to shift maximum acceptable video length restrictions from 1 to 180 minutes, or toggle the "Allow Live Tracks" checkbox to dictate inclusion settings instantly.
+* **Custom Filtering Controllers:** Adjust the duration stepper to shift maximum acceptable video length restrictions from 1 to 180 minutes, or toggle the "Allow live tracks" checkbox to dictate inclusion settings instantly.
 * **Drag-and-Drop Staging:** Drag any playlist `.txt` file from your computer and drop it directly onto the entry field to instantly queue it up for processing.
-* **System-Aware Themes:** Automatically transitions between Dark Mode and Light Mode layouts based on your OS settings.
+* **System-Aware Themes:** Follows your OS Dark/Light mode automatically, with an in-app System / Light / Dark switcher.
 
 ### Method B: CLI Sync Engine (For Technical Users)
 The command-line interface treats your local `.txt` filename as the playlist name and updates it on the fly. Create a text file with tracks ordered line-by-line (e.g., `my_list.txt`):
@@ -172,7 +173,10 @@ To bypass it safely:
 
 Planned, not yet built:
 
-* **Desktop UI aesthetic overhaul.** The current Tkinter interface is functional but plain. Planned: refined spacing and typography, a proper icon/branding pass, and a more polished light/dark theme. Likely still Tkinter-based (possibly via `customtkinter` or similar) rather than a full toolkit rewrite, though that's still open.
 * **Standalone Windows installer (`.exe`).** A packaged build (e.g. via PyInstaller) so people can download and run the GUI without installing Python, pip, or a terminal. Users will still need to supply their own `client_secret.json` — OAuth credentials are per-developer and can't be bundled into a shared installer.
+
+Shipped:
+
+* **Desktop UI aesthetic overhaul.** The GUI was rebuilt on CustomTkinter with a card-based layout, rounded controls, and an in-app System / Light / Dark theme switcher.
 
 Have a request or want to help with either? Open an issue.
