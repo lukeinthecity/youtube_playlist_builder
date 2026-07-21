@@ -37,6 +37,24 @@ youtube-playlist-builder/
 
 ---
 
+## 💾 Windows: Download & Run (No Python Required)
+
+Prebuilt Windows executables are published on the [Releases page](https://github.com/lukeinthecity/youtube_playlist_builder/releases).
+
+1. Download `YouTubePlaylistSync.exe` from the latest release.
+2. Put it in **its own folder** — the app reads `client_secret.json` from, and writes `token.json` / `cache.json` to, the folder it runs from.
+3. Add your `client_secret.json` to that folder (see the Google Cloud steps below).
+4. Double-click the `.exe`.
+
+**Notes:**
+* The first launch takes a few seconds — the single-file build unpacks itself before the window appears.
+* Windows SmartScreen may warn that the app is from an unknown publisher (the build is not code-signed). Click **More info → Run anyway**. If you'd rather not trust a prebuilt binary, the source install below produces the identical app.
+* Every release is built automatically from the tagged source by [GitHub Actions](.github/workflows/release.yml) — nothing is built by hand.
+
+Running from source (below) works on Windows, macOS, and Linux.
+
+---
+
 ## 🐍 Setup & Environment Initialization
 
 ### 1. Initialize Virtual Environment
@@ -171,12 +189,29 @@ To bypass it safely:
 
 ## 🗺️ Roadmap
 
-Planned, not yet built:
-
-* **Standalone Windows installer (`.exe`).** A packaged build (e.g. via PyInstaller) so people can download and run the GUI without installing Python, pip, or a terminal. Users will still need to supply their own `client_secret.json` — OAuth credentials are per-developer and can't be bundled into a shared installer.
-
 Shipped:
 
 * **Desktop UI aesthetic overhaul.** The GUI was rebuilt on CustomTkinter with a card-based layout, rounded controls, and an in-app System / Light / Dark theme switcher.
+* **Standalone Windows executable.** A PyInstaller build published on the Releases page, so people can download and run the GUI without installing Python, pip, or a terminal. Users still supply their own `client_secret.json` — OAuth credentials are per-developer and can't be bundled into a shared download.
 
-Have a request or want to help with either? Open an issue.
+Have a request? Open an issue.
+
+---
+
+## 🚢 Releasing (Maintainer Notes)
+
+The [Release workflow](.github/workflows/release.yml) builds `YouTubePlaylistSync.exe` on a Windows runner and attaches it to a GitHub Release whenever a version tag is pushed:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+The workflow can also be run manually from the **Actions** tab (artifact only, no release), and it rebuilds the executable on any pull request that touches the packaging inputs as a pre-merge check.
+
+To build locally on Windows instead:
+
+```bash
+pip install -r requirements.txt tkinterdnd2 pyinstaller
+pyinstaller --noconfirm --onefile --windowed --name YouTubePlaylistSync --collect-all customtkinter --collect-all tkinterdnd2 --collect-data googleapiclient gui.py
+```

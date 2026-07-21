@@ -10,5 +10,10 @@ __pycache__/
 venv/
 .venv/
 
+# PyInstaller build output
+build/
+dist/
+*.spec
+
 # Logs
 *.log

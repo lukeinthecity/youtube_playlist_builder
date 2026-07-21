@@ -1,0 +1,71 @@
+name: Release
+
+on:
+  # Build the .exe and publish a GitHub Release when a version tag is pushed
+  push:
+    tags: ["v*"]
+  # Allow manual test builds from the Actions tab (artifact only, no release)
+  workflow_dispatch:
+  # Validate the packaging recipe on PRs that touch it
+  pull_request:
+    paths:
+      - ".github/workflows/release.yml"
+      - "gui.py"
+      - "main.py"
+      - "requirements.txt"
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt tkinterdnd2 pyinstaller
+
+      - name: Build executable
+        run: >
+          pyinstaller --noconfirm --onefile --windowed
+          --name YouTubePlaylistSync
+          --collect-all customtkinter
+          --collect-all tkinterdnd2
+          --collect-data googleapiclient
+          gui.py
+
+      - name: Smoke-check bundle contents
+        run: |
+          if (-not (Test-Path "dist/YouTubePlaylistSync.exe")) { exit 1 }
+          Get-Item dist/YouTubePlaylistSync.exe | Format-List Name, Length
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: YouTubePlaylistSync-windows
+          path: dist/YouTubePlaylistSync.exe
+          if-no-files-found: error
+
+  release:
+    needs: build-windows
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: YouTubePlaylistSync-windows
+          path: dist
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create "$GITHUB_REF_NAME"
+          dist/YouTubePlaylistSync.exe
+          --repo "$GITHUB_REPOSITORY"
+          --title "YouTube Playlist Builder $GITHUB_REF_NAME"
+          --generate-notes
