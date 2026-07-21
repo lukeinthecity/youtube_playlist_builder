@@ -43,8 +43,8 @@ Prebuilt Windows executables are published on the [Releases page](https://github
 
 1. Download `YouTubePlaylistSync.exe` from the latest release.
 2. Put it in **its own folder** — the app reads `client_secret.json` from, and writes `token.json` / `cache.json` to, the folder it runs from.
-3. Add your `client_secret.json` to that folder (see the Google Cloud steps below).
-4. Double-click the `.exe`.
+3. Double-click the `.exe`.
+4. Get your OAuth credentials from the Google Cloud Console (see the steps below), then click **Import client_secret.json…** in the app and select the downloaded file — no manual renaming or file-copying required.
 
 **Notes:**
 * The first launch takes a few seconds — the single-file build unpacks itself before the window appears.
@@ -91,7 +91,7 @@ Because this utility is entirely open-source, you must supply your own secure cr
 2. **Configure Consent:** Navigate to **APIs & Services > OAuth consent screen**.  Create an **External** app, add your email to **Test users**, and save**.
 4. **Generate Keys:** Go to **Credentials > + Create Credentials > OAuth client ID**. Select **Desktop app**, create, and **Download JSON**.
 5.  **Configure YouTube API** Click on **API Library**. Search for and enable the **YouTube Data API v3**.
-6. **Link to App:** Move the downloaded file into your root folder and rename it exactly to `client_secret.json`.
+6. **Link to App:** Launch the GUI and click **Import client_secret.json…**, then select the file you just downloaded — it's copied into place automatically. (Running the CLI instead? Move the downloaded file into your project folder and rename it exactly to `client_secret.json`.)
 
 ---
 
@@ -105,7 +105,7 @@ python gui.py
 ```
 
 * **Modern Interface:** A card-based layout built on [CustomTkinter](https://github.com/TomSchimansky/CustomTkinter) with rounded controls and clean typography.
-* **Automatic Credentials Handshake:** The application automatically detects `client_secret.json` on launch.
+* **One-Click Credential Import:** Click **Import client_secret.json…** to pick your downloaded OAuth key from anywhere on disk — no manual renaming or file-copying. The app detects and validates existing credentials automatically on launch.
 * **Custom Filtering Controllers:** Adjust the duration stepper to shift maximum acceptable video length restrictions from 1 to 180 minutes, or toggle the "Allow live tracks" checkbox to dictate inclusion settings instantly.
 * **Drag-and-Drop Staging:** Drag any playlist `.txt` file from your computer and drop it directly onto the entry field to instantly queue it up for processing.
 * **System-Aware Themes:** Follows your OS Dark/Light mode automatically, with an in-app System / Light / Dark switcher.

@@ -1,10 +1,11 @@
+import json
 import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox
 
 import customtkinter as ctk
 
-from main import sync_playlist
+import main
 
 try:
     from tkinterdnd2 import DND_FILES, TkinterDnD
@@ -42,7 +43,7 @@ class PlaylistApp:
 
     def build_ui(self):
         self.root.grid_columnconfigure(0, weight=1)
-        self.root.grid_rowconfigure(4, weight=1)
+        self.root.grid_rowconfigure(5, weight=1)
 
         # ---- Header: title + theme switcher ----
         header = ctk.CTkFrame(self.root, fg_color="transparent")
@@ -65,9 +66,30 @@ class PlaylistApp:
         self.theme_switcher.set("System")
         self.theme_switcher.grid(row=0, column=1, rowspan=2, sticky="e")
 
+        # ---- Card: Google API credentials ----
+        creds_card = ctk.CTkFrame(self.root, corner_radius=12)
+        creds_card.grid(row=1, column=0, sticky="ew", padx=20, pady=8)
+        creds_card.grid_columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(
+            creds_card, text="Google API Credentials",
+            font=ctk.CTkFont(size=14, weight="bold")
+        ).grid(row=0, column=0, columnspan=2, sticky="w", padx=16, pady=(12, 4))
+
+        self.credentials_status = ctk.CTkLabel(creds_card, text="", anchor="w")
+        self.credentials_status.grid(row=1, column=0, sticky="w", padx=16, pady=(0, 14))
+
+        self.credentials_button = ctk.CTkButton(
+            creds_card, text="Import client_secret.json…", width=210, height=32,
+            command=self.import_client_secret
+        )
+        self.credentials_button.grid(row=1, column=1, sticky="e", padx=16, pady=(0, 14))
+
+        self.refresh_credentials_status()
+
         # ---- Card: playlist source ----
         source_card = ctk.CTkFrame(self.root, corner_radius=12)
-        source_card.grid(row=1, column=0, sticky="ew", padx=20, pady=8)
+        source_card.grid(row=2, column=0, sticky="ew", padx=20, pady=8)
         source_card.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
@@ -103,7 +125,7 @@ class PlaylistApp:
 
         # ---- Card: sync options ----
         options_card = ctk.CTkFrame(self.root, corner_radius=12)
-        options_card.grid(row=2, column=0, sticky="ew", padx=20, pady=8)
+        options_card.grid(row=3, column=0, sticky="ew", padx=20, pady=8)
         options_card.grid_columnconfigure((0, 1, 2), weight=1)
 
         ctk.CTkLabel(
@@ -147,7 +169,7 @@ class PlaylistApp:
 
         # ---- Sync button + progress ----
         action_frame = ctk.CTkFrame(self.root, fg_color="transparent")
-        action_frame.grid(row=3, column=0, sticky="ew", padx=20, pady=8)
+        action_frame.grid(row=4, column=0, sticky="ew", padx=20, pady=8)
         action_frame.grid_columnconfigure(0, weight=1)
 
         self.sync_button = ctk.CTkButton(
@@ -163,7 +185,7 @@ class PlaylistApp:
 
         # ---- Card: activity log ----
         log_card = ctk.CTkFrame(self.root, corner_radius=12)
-        log_card.grid(row=4, column=0, sticky="nsew", padx=20, pady=(8, 16))
+        log_card.grid(row=5, column=0, sticky="nsew", padx=20, pady=(8, 16))
         log_card.grid_columnconfigure(0, weight=1)
         log_card.grid_rowconfigure(1, weight=1)
 
@@ -179,6 +201,34 @@ class PlaylistApp:
 
     def change_theme(self, choice):
         ctk.set_appearance_mode(choice.lower())
+
+    def refresh_credentials_status(self):
+        if main.has_client_secret():
+            self.credentials_status.configure(
+                text="✓ client_secret.json found", text_color="#2fa84f"
+            )
+            self.credentials_button.configure(text="Replace client_secret.json…")
+        else:
+            self.credentials_status.configure(
+                text="⚠ No credentials configured — required before syncing",
+                text_color="#d97706"
+            )
+            self.credentials_button.configure(text="Import client_secret.json…")
+
+    def import_client_secret(self):
+        source_path = filedialog.askopenfilename(
+            title="Select your Google OAuth client_secret.json",
+            filetypes=[("JSON Files", "*.json")]
+        )
+        if not source_path:
+            return
+        try:
+            main.import_client_secret(source_path)
+        except (OSError, json.JSONDecodeError, ValueError) as e:
+            messagebox.showerror("Import Failed", str(e))
+            return
+        self.refresh_credentials_status()
+        messagebox.showinfo("Credentials Saved", "client_secret.json has been saved. You're ready to sync!")
 
     def step_duration(self, delta):
         try:
@@ -242,6 +292,10 @@ class PlaylistApp:
             messagebox.showerror("Error", "Please select a playlist file.")
             return
 
+        if not main.has_client_secret():
+            messagebox.showerror("Error", "Please import your client_secret.json before syncing.")
+            return
+
         self.sync_button.configure(state="disabled")
         self.progress.set(0)
         self.log_text.delete("1.0", tk.END)
@@ -249,7 +303,7 @@ class PlaylistApp:
 
         def task():
             try:
-                sync_playlist(
+                main.sync_playlist(
                     file_path,
                     title if title else None,
                     privacy,
