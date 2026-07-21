@@ -12,6 +12,7 @@ from google.oauth2.credentials import Credentials
 SCOPES = ["https://www.googleapis.com/auth/youtube"]
 CACHE_FILE = "cache.json"
 TOKEN_FILE = "token.json"
+CLIENT_SECRET_FILE = "client_secret.json"
 
 BLACKLIST = [
     "live",
@@ -25,6 +26,26 @@ BLACKLIST = [
 ]
 
 # ---------------- AUTH ----------------
+
+def has_client_secret():
+    return os.path.exists(CLIENT_SECRET_FILE)
+
+def import_client_secret(source_path):
+    with open(source_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    if "installed" not in data and "web" not in data:
+        raise ValueError(
+            "That doesn't look like a Google OAuth client_secret.json file "
+            "(expected an 'installed' or 'web' section)."
+        )
+
+    with open(CLIENT_SECRET_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
+    try:
+        os.chmod(CLIENT_SECRET_FILE, 0o600)
+    except OSError:
+        pass  # best effort; not supported on all platforms
 
 def save_token(credentials):
     with open(TOKEN_FILE, "w", encoding="utf-8") as f:
@@ -52,7 +73,7 @@ def authenticate():
 
     if not credentials or not credentials.valid:
         flow = InstalledAppFlow.from_client_secrets_file(
-            "client_secret.json", SCOPES)
+            CLIENT_SECRET_FILE, SCOPES)
         credentials = flow.run_local_server(port=0)
         save_token(credentials)
 

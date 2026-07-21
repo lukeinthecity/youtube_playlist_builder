@@ -69,6 +69,57 @@ class TestCache(unittest.TestCase):
             self.assertEqual(json.load(f), {"a": {"video_id": "x"}})
 
 
+class TestClientSecretImport(unittest.TestCase):
+
+    def setUp(self):
+        self.tmpdir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmpdir.cleanup)
+        self.original_cwd = os.getcwd()
+        os.chdir(self.tmpdir.name)
+        self.addCleanup(os.chdir, self.original_cwd)
+
+    def test_has_client_secret_false_when_missing(self):
+        self.assertFalse(main.has_client_secret())
+
+    def test_import_valid_installed_credentials(self):
+        source = os.path.join(self.tmpdir.name, "downloaded.json")
+        with open(source, "w", encoding="utf-8") as f:
+            json.dump({"installed": {"client_id": "x", "client_secret": "y"}}, f)
+
+        main.import_client_secret(source)
+
+        self.assertTrue(main.has_client_secret())
+        with open(main.CLIENT_SECRET_FILE, encoding="utf-8") as f:
+            saved = json.load(f)
+        self.assertEqual(saved["installed"]["client_id"], "x")
+
+    def test_import_accepts_web_credentials(self):
+        source = os.path.join(self.tmpdir.name, "downloaded.json")
+        with open(source, "w", encoding="utf-8") as f:
+            json.dump({"web": {"client_id": "x", "client_secret": "y"}}, f)
+
+        main.import_client_secret(source)
+
+        self.assertTrue(main.has_client_secret())
+
+    def test_import_rejects_unrelated_json(self):
+        source = os.path.join(self.tmpdir.name, "not_a_secret.json")
+        with open(source, "w", encoding="utf-8") as f:
+            json.dump({"foo": "bar"}, f)
+
+        with self.assertRaises(ValueError):
+            main.import_client_secret(source)
+        self.assertFalse(main.has_client_secret())
+
+    def test_import_rejects_invalid_json(self):
+        source = os.path.join(self.tmpdir.name, "broken.json")
+        with open(source, "w", encoding="utf-8") as f:
+            f.write("{not json")
+
+        with self.assertRaises(json.JSONDecodeError):
+            main.import_client_secret(source)
+
+
 class TestPlaylistFile(unittest.TestCase):
 
     def test_reads_lines_and_skips_blanks(self):
