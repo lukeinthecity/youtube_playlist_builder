@@ -5,6 +5,11 @@ on:
     branches: [main]
   pull_request:
 
+# Least privilege: none of these jobs write anything (tests, secret scan,
+# dependency audit are all read-only checks).
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest

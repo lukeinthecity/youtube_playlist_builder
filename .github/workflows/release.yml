@@ -14,6 +14,11 @@ on:
       - "main.py"
       - "requirements.txt"
 
+# Least privilege default; the release job below overrides this with the
+# write access it actually needs to publish a GitHub Release.
+permissions:
+  contents: read
+
 jobs:
   build-windows:
     runs-on: windows-latest
