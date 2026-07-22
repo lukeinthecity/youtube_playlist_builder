@@ -29,3 +29,37 @@ jobs:
 
       - name: Run smoke tests
         run: python -m unittest test_main -v
+
+  secret-scan:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # Belt-and-suspenders on top of .gitignore: fails if a real
+      # client_secret.json/token.json or other credential ever lands in a
+      # commit — scans full history on every push/PR, not just the tree.
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  audit-py:
+    name: Dependency audit (pip-audit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: python -m venv .venv
+      # setuptools is venv build tooling (not a project dep) but pip-audit
+      # still flags it; keep it current so the audit reflects real
+      # application-dependency risk.
+      - run: .venv/bin/pip install --upgrade pip setuptools
+      - run: .venv/bin/pip install -r requirements.txt pip-audit
+      - run: .venv/bin/pip-audit
