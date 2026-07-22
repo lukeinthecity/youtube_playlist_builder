@@ -1,0 +1,21 @@
+version: 2
+updates:
+  # Keep the GitHub Actions used in these workflows current and get
+  # Dependabot alerts if an action we depend on ships a security advisory.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      github-actions:
+        patterns: ["*"]
+
+  # Python dependencies (Google API client, auth libraries, CustomTkinter).
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      pip-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
