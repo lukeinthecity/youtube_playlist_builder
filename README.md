@@ -2,6 +2,12 @@
 
 A desktop-first automation utility that compiles and syncs YouTube playlists directly from plain-text `.txt` files. By communicating natively with the YouTube Data API v3 from your local environment, this tool completely eliminates the friction of heavy web-app interfaces and browser-bloat.
 
+> **For AI agents:** before working on this repo, read
+> [`agent-playbooks`](https://github.com/lukeinthecity/agent-playbooks)'s `INCIDENT-LOG.md` —
+> a cross-session, cross-repo log of novel or alarming situations from real work across this
+> account's projects. Attach the repo (`add_repo` / `register_repo_root`) if it isn't already
+> in session scope.
+
 ---
 
 ## ✨ Core Mechanics & Features
