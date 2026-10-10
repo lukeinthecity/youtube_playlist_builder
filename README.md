@@ -93,11 +93,11 @@ pip install tkinterdnd2
 
 Because this utility is entirely open-source, you must supply your own secure credentials from the Google Cloud Console. Follow these steps to generate your keys:
 
-1. **Create Project:** Go to [Google Cloud Console](https://console.cloud.google.com/) and create a new project**.
-2. **Configure Consent:** Navigate to **APIs & Services > OAuth consent screen**.  Create an **External** app, add your email to **Test users**, and save**.
-4. **Generate Keys:** Go to **Credentials > + Create Credentials > OAuth client ID**. Select **Desktop app**, create, and **Download JSON**.
-5.  **Configure YouTube API** Click on **API Library**. Search for and enable the **YouTube Data API v3**.
-6. **Link to App:** Launch the GUI and click **Import client_secret.json…**, then select the file you just downloaded — it's copied into place automatically. (Running the CLI instead? Move the downloaded file into your project folder and rename it exactly to `client_secret.json`.)
+1. **Create Project:** Go to [Google Cloud Console](https://console.cloud.google.com/) and create a new project.
+2. **Configure Consent:** Navigate to **Google Auth Platform** (this replaced the old single "OAuth consent screen" page — it's now split into separate **Branding** / **Audience** / **Data Access** / **Clients** tabs). Fill in the minimal required fields under **Branding**, then go to the **Audience** tab: set the user type to **External** and add your email under **Test users**, then save.
+3. **Generate Keys:** Go to **Credentials > + Create Credentials > OAuth client ID**. Select **Desktop app**, create, and **Download JSON**. (Google Auth Platform's **Clients** tab is a newer, equivalent path to the same OAuth client creation flow if you land there instead.)
+4. **Configure YouTube API:** Click on **API Library**. Search for and enable the **YouTube Data API v3**.
+5. **Link to App:** Launch the GUI and click **Import client_secret.json…**, then select the file you just downloaded — it's copied into place automatically. (Running the CLI instead? Move the downloaded file into your project folder and rename it exactly to `client_secret.json`.)
 
 ---
 
@@ -163,16 +163,16 @@ Because this tool runs in a local sandbox mode utilizing personal Google Cloud C
 * **The Cause:** Your Google Cloud project is in **Testing** mode (which is completely fine and normal). However, Google will aggressively block any authentication attempt unless the specific login email has been manually white-listed.
 * **The Fix:**
   1. Open the [Google Cloud Console](https://console.cloud.google.com/).
-  2. Navigate to **APIs & Services** > **OAuth consent screen**.
+  2. Navigate to **Google Auth Platform** > **Audience** (this replaced the old "APIs & Services > OAuth consent screen" page).
   3. Scroll down to the **Test users** sub-section and click **+ ADD USERS**.
   4. Type your exact Google/YouTube email address, click **Add**, and save.
   5. Close the hung browser window, restart the utility, and log in again.
 
 ### 2. 🔍 Missing "Test Users" Section in Google Cloud
-* **The Symptom:** You are looking at the OAuth consent configuration screen, but the entire "Test Users" portal is missing from the interface.
+* **The Symptom:** You are looking at the Google Auth Platform's Audience configuration, but the entire "Test Users" portal is missing from the interface.
 * **The Cause:** You selected **Internal** instead of **External** for the User Type. Internal setups are locked strictly to corporate Google Workspace domains. Standard `@gmail.com` accounts will be frozen out.
 * **The Fix:**
-  1. On the **OAuth consent screen** dashboard, click the **Make External** button (or click *Edit App*).
+  1. On the **Google Auth Platform > Audience** tab, edit the app's user type (or click *Edit App*).
   2. Reconfigure the User Type to **External**.
   3. Advance to the **Test users** setup step, add your email address, and hit save.
 
